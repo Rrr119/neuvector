@@ -52,6 +52,15 @@ var ImportantFiles []share.CLUSFileMonitorFilter = []share.CLUSFileMonitorFilter
 	{Behavior: share.FileAccessBehaviorMonitor, Path: "/usr/sbin", Regex: ".*", Recursive: true},
 	{Behavior: share.FileAccessBehaviorMonitor, Path: "/usr/local/bin", Regex: ".*", Recursive: true},
 	{Behavior: share.FileAccessBehaviorMonitor, Path: "/usr/local/sbin", Regex: ".*", Recursive: true},
+	{Behavior: share.FileAccessBehaviorMonitor, Path: "/boot", Regex: ".*", Recursive: true},
+	{Behavior: share.FileAccessBehaviorMonitor, Path: "/etc/cron.d", Regex: ".*", Recursive: true},
+	{Behavior: share.FileAccessBehaviorMonitor, Path: "/etc/cron.hourly", Regex: ".*", Recursive: true},
+	{Behavior: share.FileAccessBehaviorMonitor, Path: "/etc/cron.daily", Regex: ".*", Recursive: true},
+	{Behavior: share.FileAccessBehaviorMonitor, Path: "/etc/cron.weekly", Regex: ".*", Recursive: true},
+	{Behavior: share.FileAccessBehaviorMonitor, Path: "/etc/cron.monthly", Regex: ".*", Recursive: true},
+	{Behavior: share.FileAccessBehaviorMonitor, Path: "/etc/init.d", Regex: ".*", Recursive: true},
+	{Behavior: share.FileAccessBehaviorMonitor, Path: "/etc/systemd/system", Regex: ".*", Recursive: true},
+	{Behavior: share.FileAccessBehaviorMonitor, Path: "/etc/ld.so.preload", Regex: ""},
 }
 
 var DefaultContainerConf share.CLUSFileMonitorProfile = share.CLUSFileMonitorProfile{

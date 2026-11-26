@@ -1013,6 +1013,7 @@ func (h *nvCrdHandler) crdHandleProcessProfile(group, mode string, profile *api.
 		// update mode
 		pp.Mode = mode
 		pp.Baseline = profile.Baseline
+		pp.LearningPeriod = profile.LearningPeriod
 
 		list := make([]*share.CLUSProcessProfileEntry, 0)
 		if reviewType == share.ReviewTypeCRD {
@@ -1030,6 +1031,7 @@ func (h *nvCrdHandler) crdHandleProcessProfile(group, mode string, profile *api.
 			p := &share.CLUSProcessProfileEntry{
 				Name:            proc.Name,
 				Path:            proc.Path,
+				Role:            proc.Role,
 				Action:          proc.Action,
 				CfgType:         cfgType,
 				Uuid:            ruleid.NewUuid(),
@@ -2984,11 +2986,20 @@ targetpass:
 		if crdCfgRet.PolicyModeCfg != nil && pprofile.Mode != "" {
 			crdCfgRet.PolicyModeCfg.ProfileMode = &pprofile.Mode
 		}
+		if gfwrule.Spec.ProcessProfile != nil && gfwrule.Spec.ProcessProfile.LearningPeriod != nil {
+			pprofile.LearningPeriod = int(*gfwrule.Spec.ProcessProfile.LearningPeriod)
+			if pprofile.LearningPeriod < share.ProcessLearningPeriodDisable {
+				errMsg = fmt.Sprintf("%s Rule format error: invalid learning period %d", reviewTypeDisplay, pprofile.LearningPeriod)
+				buffer.WriteString(errMsg)
+				errCount++
+			}
+		}
 
 		for _, pp := range gfwrule.Spec.ProcessRule {
 			p := &api.RESTProcessProfileEntry{
 				Name:            pp.Name,
 				Path:            pp.Path,
+				Role:            pp.Role,
 				Action:          pp.Action,
 				AllowFileUpdate: pp.AllowFileUpdate,
 				CfgType:         secRuleCfgType,
@@ -3722,7 +3733,10 @@ func (h *nvCrdHandler) crdGFwRuleProcessRecord(crdCfgRet *resource.NvSecurityPar
 		profileMode = crdCfgRet.ProcessProfileCfg.Mode
 		crdRecord.ProfileName = crdCfgRet.TargetName
 		crdRecord.ProfileMode = profileMode
-		crdRecord.ProcessProfile = &share.CLUSCrdProcessProfile{Baseline: crdCfgRet.ProcessProfileCfg.Baseline}
+		crdRecord.ProcessProfile = &share.CLUSCrdProcessProfile{
+			Baseline:       crdCfgRet.ProcessProfileCfg.Baseline,
+			LearningPeriod: crdCfgRet.ProcessProfileCfg.LearningPeriod,
+		}
 		crdRecord.ProcessRules = h.crdGetProcessRules(crdCfgRet.ProcessProfileCfg)
 		crdRecord.FileRules = h.crdGetFileRules(crdCfgRet.FileProfileCfg)
 	}
@@ -4497,6 +4511,7 @@ func (h *nvCrdHandler) crdGetProcessRules(profile *api.RESTProcessProfile) []sha
 		r := &share.CLUSCrdProcessRule{
 			Name:            proc.Name,
 			Path:            proc.Path,
+			Role:            proc.Role,
 			Action:          proc.Action,
 			AllowFileUpdate: proc.AllowFileUpdate,
 		}
@@ -4528,6 +4543,10 @@ func exportProcessRule(group string, rconf *api.RESTGroupExport, secRule *v1.NvS
 				baseline = share.ProfileBasic
 			}
 			secRule.ProcessProfile = &v1.NvSecurityProcessProfile{Baseline: &baseline}
+			if profile.LearningPeriod != 0 {
+				learningPeriod := int32(profile.LearningPeriod)
+				secRule.ProcessProfile.LearningPeriod = &learningPeriod
+			}
 			if rconf.ProfileMode != "" {
 				secRule.ProcessProfile.Mode = &rconf.ProfileMode
 			} else if profile.Mode != "" {
@@ -4537,13 +4556,14 @@ func exportProcessRule(group string, rconf *api.RESTGroupExport, secRule *v1.NvS
 		}
 		dupChecker := utils.NewSet()
 		for _, gproc := range profile.ProcessList {
-			key := fmt.Sprintf("%s::%s::%s", gproc.Name, gproc.Path, gproc.Action)
+			key := fmt.Sprintf("%s::%s::%s::%s", gproc.Role, gproc.Name, gproc.Path, gproc.Action)
 			if !dupChecker.Contains(key) {
 				dupChecker.Add(key)
 				//
 				r := &v1.NvSecurityProcessRule{
 					Name:            gproc.Name,
 					Path:            gproc.Path,
+					Role:            gproc.Role,
 					Action:          gproc.Action,
 					AllowFileUpdate: gproc.AllowFileUpdate,
 				}
@@ -4731,6 +4751,7 @@ func (h *nvCrdHandler) crdRebuildGroupProfiles(groupName string, recordList map[
 	}
 
 	baseline := ""
+	learningPeriod := 0
 	profileMode := ""
 	procs := make(map[string]*share.CLUSCrdProcessRule, 0)
 	files := make(map[string]*share.CLUSCrdFileRule, 0)
@@ -4742,9 +4763,12 @@ func (h *nvCrdHandler) crdRebuildGroupProfiles(groupName string, recordList map[
 		if record.ProcessProfile.Baseline == share.ProfileBasic {
 			baseline = share.ProfileBasic
 		}
+		if record.ProcessProfile.LearningPeriod != 0 {
+			learningPeriod = record.ProcessProfile.LearningPeriod
+		}
 		// collecting process rules
 		for i, pr := range record.ProcessRules {
-			key := fmt.Sprintf("%s::%s::%s", pr.Name, pr.Path, pr.Action)
+			key := fmt.Sprintf("%s::%s::%s::%s", pr.Role, pr.Name, pr.Path, pr.Action)
 			procs[key] = &(record.ProcessRules[i])
 		}
 
@@ -4779,10 +4803,11 @@ func (h *nvCrdHandler) crdRebuildGroupProfiles(groupName string, recordList map[
 
 	////
 	pprofile := &api.RESTProcessProfile{
-		Group:       groupName,
-		Baseline:    baseline,
-		Mode:        profileMode,
-		ProcessList: make([]*api.RESTProcessProfileEntry, 0),
+		Group:          groupName,
+		Baseline:       baseline,
+		Mode:           profileMode,
+		LearningPeriod: learningPeriod,
+		ProcessList:    make([]*api.RESTProcessProfileEntry, 0),
 	}
 
 	/// from map to slices
@@ -4790,6 +4815,7 @@ func (h *nvCrdHandler) crdRebuildGroupProfiles(groupName string, recordList map[
 		ppa := &api.RESTProcessProfileEntry{
 			Name:            pp.Name,
 			Path:            pp.Path,
+			Role:            pp.Role,
 			Action:          pp.Action,
 			AllowFileUpdate: pp.AllowFileUpdate,
 		}

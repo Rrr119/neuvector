@@ -103,6 +103,24 @@ func TestWildcardPathEmptyPolicy(t *testing.T) {
 	}
 }
 
+func TestRoleSpecificRulesSurviveMerge(t *testing.T) {
+	profile := mergeProcessProfiles([]*share.CLUSProcessProfileEntry{
+		{Name: "sh", Path: "/bin/sh", Role: "web", Action: share.PolicyActionAllow},
+		{Name: "sh", Path: "/bin/sh", Role: "api", Action: share.PolicyActionDeny},
+	})
+
+	if len(profile) != 2 {
+		t.Fatalf("merged role rules=%d, want 2", len(profile))
+	}
+	roles := map[string]bool{}
+	for _, entry := range profile {
+		roles[entry.Role] = true
+	}
+	if !roles["web"] || !roles["api"] {
+		t.Fatalf("role-specific rules were lost: %+v", profile)
+	}
+}
+
 func TestAllowAllPolicy(t *testing.T) {
 	grp_rule1 := []*share.CLUSProcessProfileEntry{
 		{Name: "ls", Path: "/usr/bin/busybox", Action: share.PolicyActionAllow},

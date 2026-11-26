@@ -3,6 +3,7 @@ package policy
 import (
 	"net"
 	"sync"
+	"time"
 
 	"github.com/neuvector/neuvector/agent/dp"
 	"github.com/neuvector/neuvector/share"
@@ -45,6 +46,8 @@ type Engine struct {
 	HostPolicyAddrMap map[string]share.CLUSSubnet
 	PolTimerWheel     *utils.TimerWheel
 	PolDomNBEMap      map[string]bool
+	ProcessLearning   map[string]*processLearningState
+	Now               func() time.Time
 }
 
 func (e *Engine) Init(HostID string, HostIPs utils.Set, TunnelIP []net.IPNet, cb GroupProcPolicyCallback, pad int) {
@@ -60,6 +63,8 @@ func (e *Engine) Init(HostID string, HostIPs utils.Set, TunnelIP []net.IPNet, cb
 	e.getGroupRule = cb
 	e.PolicyAddrMap = make(map[string]share.CLUSSubnet)
 	e.HostPolicyAddrMap = make(map[string]share.CLUSSubnet)
+	e.ProcessLearning = make(map[string]*processLearningState)
+	e.Now = time.Now
 	polAppDir = pad
 	e.PolDomNBEMap = make(map[string]bool)
 }

@@ -1593,8 +1593,19 @@ func programDP(c *containerData, cfgApp bool, macChangePairs map[string]*pipe.In
 // //// Per container, not for a pod
 // //// TODO: differentiate policy(s) from pod and its child container(s)
 func applyProcessProfilePolicy(c *containerData, service string) {
-	pg, ok := pe.ObtainProcessPolicy(service, c.id) // needs to be specific to each container
+	var role string
+	if c.info != nil {
+		role = processRole(c.info.Labels, c.service)
+	} else {
+		role = processRole(nil, c.service)
+	}
+	pg, ok := pe.ObtainProcessPolicy(service, c.id, role) // needs to be specific to each container
 	if ok {
+		var startedAt time.Time
+		if c.info != nil {
+			startedAt = c.info.StartedAt
+		}
+		pe.StartProcessLearning(c.id, startedAt)
 		// system containers will not enter block mode because of its (c.capBlock==false)
 		c.blocking = (pg.Mode == share.PolicyModeEnforce)
 		prober.HandleProcessPolicyChange(c.id, c.pid, pg, !c.pushPHistory, c.blocking && c.capBlock)
@@ -2222,6 +2233,8 @@ func taskAddContainer(id string, info *container.ContainerMetaExtra) {
 	gInfo.activePid2ID[c.pid] = id
 	gInfoUnlock()
 
+	pe.StartProcessLearning(id, info.StartedAt)
+
 	if c.pid != 0 {
 		bench.AddContainer(id, info.Name)
 	}
@@ -2356,6 +2369,7 @@ func taskStopContainer(id string, pid int) {
 	}
 	delete(gInfo.activeContainers, id)
 	delete(gInfo.activePid2ID, c.pid)
+	pe.StopProcessLearning(id)
 
 	subnetUpdate := refreshLocalSubnets()
 

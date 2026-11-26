@@ -700,7 +700,11 @@ func processPolicyLookup(id, riskType, pname, ppath string, pid, pgid, shellCmd 
 		svcGroup = makeLearnedGroupName(utils.NormalizeForURL(svc))
 	}
 
-	mode, setting, group, err := pe.ProcessPolicyLookup(svcGroup, id, ppe, pid)
+	role := containerProcessRole(id)
+	mode, setting, group, err := pe.ProcessPolicyLookup(svcGroup, id, ppe, pid, policy.ProcessLookupOption{
+		Role:     role,
+		RiskType: riskType,
+	})
 	if err == nil {
 		// log.WithFields(log.Fields{"mode": mode, "group": group, "proc": proc, "pid": pid, "shellCmd": shellCmd}).Debug("PROC: ")
 		bNotInWhitelist := (ppe.Uuid == share.CLUSReservedUuidNotAllowed)
@@ -712,19 +716,19 @@ func processPolicyLookup(id, riskType, pname, ppath string, pid, pgid, shellCmd 
 		switch ppe.Action {
 		case share.PolicyActionLearn:
 			if riskType != "" { // risky processs
-				bAllowSuspicious = pe.IsAllowedSuspiciousApp(svcGroup, id, riskType)
+				bAllowSuspicious = pe.IsAllowedSuspiciousApp(svcGroup, id, riskType, role)
 				// override the action to checkApp
 				ppe.Action = share.PolicyActionCheckApp
 			}
 		case share.PolicyActionViolate: // policy mode decision
-			if !bNeuvector && pe.IsAllowedByParentApp(svcGroup, id, ppe.Name, pname, ppath, pgid) {
+			if !bNeuvector && pe.IsAllowedByParentApp(svcGroup, id, ppe.Name, pname, ppath, pgid, role) {
 				ppe.Action = share.PolicyActionAllow
 				bAllowSuspicious = true
 				log.WithFields(log.Fields{"group": svcGroup, "pname": pname, "name": ppe.Name}).Debug("PROC: allowed by parent")
 			}
 		case share.PolicyActionCheckApp, share.PolicyActionAllow: // a real policy
 			if riskType != "" {
-				bAllowSuspicious = pe.IsAllowedSuspiciousApp(svcGroup, id, riskType)
+				bAllowSuspicious = pe.IsAllowedSuspiciousApp(svcGroup, id, riskType, role)
 				if !bAllowSuspicious {
 					// override the action to checkApp
 					ppe.Action = share.PolicyActionCheckApp
@@ -736,7 +740,7 @@ func processPolicyLookup(id, riskType, pname, ppath string, pid, pgid, shellCmd 
 				group = share.GroupNVProtect // updated
 				svcGroup = group
 				// log.WithFields(log.Fields{"id": id, "name": ppe.Name, "path": ppe.Path}).Info("GRP: NV Protect")
-			} else if pe.IsAllowedByParentApp(svcGroup, id, ppe.Name, pname, ppath, pgid) {
+			} else if pe.IsAllowedByParentApp(svcGroup, id, ppe.Name, pname, ppath, pgid, role) {
 				ppe.Action = share.PolicyActionAllow
 				bAllowSuspicious = true
 				log.WithFields(log.Fields{"group": svcGroup, "pname": pname, "name": ppe.Name}).Debug("PROC: allowed by parent")
@@ -1423,7 +1427,7 @@ func addLearnedProcess(svcGroup string, proc *share.CLUSProcessProfileEntry) {
 	}
 
 	report := &share.CLUSProcProfileReq{
-		GroupName: svcGroup,
+		GroupName: share.CLUSProcessRoleGroupName(svcGroup, proc.Role),
 		Name:      proc.Name,
 		Path:      proc.Path,
 		User:      proc.User,

@@ -452,6 +452,9 @@ func mapProcToSortedSlices(m map[string]*share.CLUSProcessProfileEntry) []*share
 		// sort them by Name, then Path
 		sort.Slice(list, func(i, j int) bool {
 			if list[i].Name == list[j].Name {
+				if list[i].Path == list[j].Path {
+					return list[i].Role < list[j].Role
+				}
 				return list[i].Path < list[j].Path
 			}
 			return list[i].Name < list[j].Name
@@ -475,7 +478,7 @@ func mergeProcessProfiles(cur []*share.CLUSProcessProfileEntry) []*share.CLUSPro
 	}
 
 	for _, entry := range cur {
-		key := fmt.Sprintf("%s:%s", entry.Name, entry.Path)
+		key := fmt.Sprintf("%s:%s:%s", entry.Role, entry.Name, entry.Path)
 		if entry.Action == share.PolicyActionDeny {
 			if entry.Name == "*" && entry.Path == "*" {
 				// (0) deny all : this invalid entry is blocked at REST api level
@@ -616,6 +619,10 @@ func calculateProcGroupProfile(id, svc string) (*share.CLUSProcessProfile, bool)
 	grpCacheLock.Lock()
 	for grpName, grpCache := range grpProfileCacheMap {
 		if grpCache.members.Contains(id) {
+			proc.Whitelist = append(proc.Whitelist, grpCache.proc.Whitelist...)
+			if proc.LearningPeriod == 0 && grpCache.proc.LearningPeriod != 0 {
+				proc.LearningPeriod = grpCache.proc.LearningPeriod
+			}
 			if strings.HasPrefix(grpName, federalGrpPrefix) {
 				fedproc.Process = append(fedproc.Process, grpCache.proc.Process...)
 			} else {
@@ -645,6 +652,10 @@ func calculateProcGroupProfile(id, svc string) (*share.CLUSProcessProfile, bool)
 			proc.Process = append(proc.Process, p)
 		}
 	}
+	proc.Whitelist = append(proc.Whitelist, svc_proc.Whitelist...)
+	if svc_proc.LearningPeriod != 0 {
+		proc.LearningPeriod = svc_proc.LearningPeriod
+	}
 
 	// remove the duplicate entries and prioritize the sequences
 	pp := &share.CLUSProcessProfile{Process: make([]*share.CLUSProcessProfileEntry, 0)}
@@ -668,14 +679,16 @@ func calculateProcGroupProfile(id, svc string) (*share.CLUSProcessProfile, bool)
 
 	proc.Group = svc_proc.Group
 	proc.Mode = svc_proc.Mode
+	proc.Baseline = svc_proc.Baseline
 	proc.AlertDisable = svc_proc.AlertDisable
 	proc.HashEnable = svc_proc.HashEnable
 	proc.Process = pp.Process
 
 	if id != "" { // container only
+		role := containerProcessRole(id)
 		for _, p := range proc.Process { // separate CRD and other types
 			// log.WithFields(log.Fields{"proc": p, "Svc": svc}).Debug("GRP:")
-			if p.Action == share.PolicyActionAllow {
+			if p.Action == share.PolicyActionAllow && policy.ProcessRuleMatchesRole(p, role) {
 				prober.UpdateFromAllowRule(id, p.Path)
 			}
 		}
@@ -1018,8 +1031,9 @@ func cbEstimateDeniedProcessdByGroup(id, name, path string) (string, string) {
 		}
 
 		// match denied policy
+		role := containerProcessRole(id)
 		for _, pp := range profile.Process {
-			if policy.MatchProfileProcess(pp, ppe) && pp.Action == share.PolicyActionDeny {
+			if policy.MatchProfileProcessForRole(pp, ppe, role) && pp.Action == share.PolicyActionDeny {
 				if pp.DerivedGroup == "" {
 					break // matched service group
 				}

@@ -57,6 +57,14 @@ const (
 )
 
 const (
+	// ProcessLearningPeriodDefault is the startup learning window used when a
+	// profile does not specify learning_period. A negative value disables the
+	// window explicitly.
+	ProcessLearningPeriodDefault int = 30
+	ProcessLearningPeriodDisable int = -1
+)
+
+const (
 	PolicyActionOpen     string = "open" // Policy is not enforced
 	PolicyActionLearn    string = "learn"
 	PolicyActionAllow    string = "allow"

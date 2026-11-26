@@ -3078,6 +3078,7 @@ type RESTResponseRuleConfigData struct {
 type RESTProcessProfileEntryConfig struct {
 	Name            string `json:"name"`
 	Path            string `json:"path"`
+	Role            string `json:"role,omitempty"`
 	Action          string `json:"action"`
 	Group           string `json:"group"`
 	AllowFileUpdate bool   `json:"allow_update"`
@@ -3086,6 +3087,7 @@ type RESTProcessProfileEntryConfig struct {
 type RESTProcessProfileEntry struct {
 	Name             string `json:"name"`
 	Path             string `json:"path,omitempty"`
+	Role             string `json:"role,omitempty"`
 	User             string `json:"user,omitempty"`
 	Uid              int32  `json:"uid,omitempty"`
 	Action           string `json:"action"`
@@ -3098,12 +3100,14 @@ type RESTProcessProfileEntry struct {
 }
 
 type RESTProcessProfile struct {
-	Group        string                     `json:"group"`
-	AlertDisable bool                       `json:"alert_disabled,omitempty"`
-	HashEnable   bool                       `json:"hash_enabled,omitempty"`
-	Baseline     string                     `json:"baseline"`
-	Mode         string                     `json:"mode"`
-	ProcessList  []*RESTProcessProfileEntry `json:"process_list"`
+	Group          string                     `json:"group"`
+	AlertDisable   bool                       `json:"alert_disabled,omitempty"`
+	HashEnable     bool                       `json:"hash_enabled,omitempty"`
+	Baseline       string                     `json:"baseline"`
+	Mode           string                     `json:"mode"`
+	LearningPeriod int                        `json:"learning_period,omitempty"`
+	Whitelist      []*RESTProcessProfileEntry `json:"whitelist,omitempty"`
+	ProcessList    []*RESTProcessProfileEntry `json:"process_list"`
 }
 
 type RESTProcessProfileData struct {
@@ -3119,6 +3123,8 @@ type RESTProcessProfileConfig struct {
 	AlertDisable   *bool                            `json:"alert_disabled,omitempty"`
 	HashEnable     *bool                            `json:"hash_enabled,omitempty"`
 	Baseline       *string                          `json:"baseline,omitempty"`
+	LearningPeriod *int                             `json:"learning_period,omitempty"`
+	Whitelist      *[]RESTProcessProfileEntryConfig `json:"whitelist,omitempty"`
 	ProcessChgList *[]RESTProcessProfileEntryConfig `json:"process_change_list,omitempty"`
 	ProcessDelList *[]RESTProcessProfileEntryConfig `json:"process_delete_list,omitempty"`
 }

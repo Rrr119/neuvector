@@ -202,21 +202,36 @@ func (m *CacheMethod) GetProcessProfile(group string, acc *access.AccessControl)
 		}
 
 		resp := api.RESTProcessProfile{
-			Group:        p.Group,
-			Baseline:     p.Baseline,
-			AlertDisable: p.AlertDisable,
-			HashEnable:   p.HashEnable,
-			Mode:         p.Mode,
-			ProcessList:  make([]*api.RESTProcessProfileEntry, 0),
+			Group:          p.Group,
+			Baseline:       p.Baseline,
+			AlertDisable:   p.AlertDisable,
+			HashEnable:     p.HashEnable,
+			Mode:           p.Mode,
+			LearningPeriod: p.LearningPeriod,
+			ProcessList:    make([]*api.RESTProcessProfileEntry, 0),
+			Whitelist:      make([]*api.RESTProcessProfileEntry, 0, len(p.Whitelist)),
+		}
+		for _, gproc := range p.Whitelist {
+			resp.Whitelist = append(resp.Whitelist, &api.RESTProcessProfileEntry{
+				Name:             gproc.Name,
+				Path:             gproc.Path,
+				Role:             gproc.Role,
+				User:             gproc.User,
+				Action:           share.PolicyActionAllow,
+				AllowFileUpdate:  gproc.AllowFileUpdate,
+				CreatedTimeStamp: gproc.CreatedAt.Unix(),
+				UpdatedTimeStamp: gproc.UpdatedAt.Unix(),
+				CfgType:          common.TCfgTypeToApi(gproc.CfgType),
+			})
 		}
 
-		var lastName, lastPath string
+		var lastName, lastPath, lastRole string
 		var lastCfgType share.TCfgType
 		for _, gproc := range p.Process {
 			// Sorted slices by Name(s), then Path(s)
 			// existing data, skip duplicate entry by comparing Name and Path
 			// still allow different Names but the same Path (could be wildcard or symbolic links like busybox)
-			if gproc.Name == lastName && gproc.Path == lastPath && gproc.CfgType == lastCfgType {
+			if gproc.Name == lastName && gproc.Path == lastPath && gproc.Role == lastRole && gproc.CfgType == lastCfgType {
 				//	log.WithFields(log.Fields{"lastName": lastName, "lastPath": lastPath, "User": gproc.User}).Debug("PROC: ")
 				continue
 			}
@@ -224,6 +239,7 @@ func (m *CacheMethod) GetProcessProfile(group string, acc *access.AccessControl)
 			proc := &api.RESTProcessProfileEntry{
 				Name: gproc.Name,
 				Path: gproc.Path,
+				Role: gproc.Role,
 				User: gproc.User,
 				Uuid: gproc.Uuid,
 				//Uid:    gproc.Uid,
@@ -239,6 +255,7 @@ func (m *CacheMethod) GetProcessProfile(group string, acc *access.AccessControl)
 			// store for reference
 			lastName = proc.Name
 			lastPath = proc.Path
+			lastRole = proc.Role
 			lastCfgType = gproc.CfgType
 		}
 		return &resp, nil
@@ -280,17 +297,33 @@ func (m *CacheMethod) GetAllProcessProfile(scope string, acc *access.AccessContr
 
 		if (getFed && p.CfgType == share.FederalCfg) || (getLocal && p.CfgType != share.FederalCfg) {
 			resp := api.RESTProcessProfile{
-				Group:        p.Group,
-				Baseline:     p.Baseline,
-				AlertDisable: p.AlertDisable,
-				HashEnable:   p.HashEnable,
-				Mode:         p.Mode,
-				ProcessList:  make([]*api.RESTProcessProfileEntry, 0),
+				Group:          p.Group,
+				Baseline:       p.Baseline,
+				AlertDisable:   p.AlertDisable,
+				HashEnable:     p.HashEnable,
+				Mode:           p.Mode,
+				LearningPeriod: p.LearningPeriod,
+				ProcessList:    make([]*api.RESTProcessProfileEntry, 0),
+				Whitelist:      make([]*api.RESTProcessProfileEntry, 0, len(p.Whitelist)),
+			}
+			for _, gproc := range p.Whitelist {
+				resp.Whitelist = append(resp.Whitelist, &api.RESTProcessProfileEntry{
+					Name:             gproc.Name,
+					Path:             gproc.Path,
+					Role:             gproc.Role,
+					User:             gproc.User,
+					Action:           share.PolicyActionAllow,
+					AllowFileUpdate:  gproc.AllowFileUpdate,
+					CreatedTimeStamp: gproc.CreatedAt.Unix(),
+					UpdatedTimeStamp: gproc.UpdatedAt.Unix(),
+					CfgType:          common.TCfgTypeToApi(gproc.CfgType),
+				})
 			}
 			for _, gproc := range p.Process {
 				proc := &api.RESTProcessProfileEntry{
 					Name: gproc.Name,
 					Path: gproc.Path,
+					Role: gproc.Role,
 					User: gproc.User,
 					Uuid: gproc.Uuid,
 					//Uid:    gproc.Uid,
@@ -343,17 +376,25 @@ func (m *CacheMethod) GetFedProcessProfileCache() []*share.CLUSProcessProfile {
 		}
 
 		resp := share.CLUSProcessProfile{
-			Group:        p.Group,
-			AlertDisable: p.AlertDisable,
-			HashEnable:   p.HashEnable,
-			Mode:         p.Mode,
-			Process:      make([]*share.CLUSProcessProfileEntry, 0, len(p.Process)),
-			CfgType:      p.CfgType,
+			Group:          p.Group,
+			AlertDisable:   p.AlertDisable,
+			HashEnable:     p.HashEnable,
+			Mode:           p.Mode,
+			LearningPeriod: p.LearningPeriod,
+			Process:        make([]*share.CLUSProcessProfileEntry, 0, len(p.Process)),
+			Whitelist:      make([]*share.CLUSProcessProfileEntry, 0, len(p.Whitelist)),
+			CfgType:        p.CfgType,
+		}
+		for _, gproc := range p.Whitelist {
+			proc := *gproc
+			proc.Action = share.PolicyActionAllow
+			resp.Whitelist = append(resp.Whitelist, &proc)
 		}
 		for _, gproc := range p.Process {
 			proc := &share.CLUSProcessProfileEntry{
 				Name:            gproc.Name,
 				Path:            gproc.Path,
+				Role:            gproc.Role,
 				User:            gproc.User,
 				Action:          gproc.Action,
 				CfgType:         gproc.CfgType,

@@ -2155,12 +2155,15 @@ func importGroupPolicy(loginDomainRoles access.DomainRole, importTask share.CLUS
 						// nodes, containers, service or user-defined groups
 						profileMode = grpCfgRet.ProcessProfileCfg.Mode
 						crdRecord = share.CLUSCrdSecurityRule{
-							ProfileName:    grpCfgRet.TargetName,
-							ProfileMode:    profileMode,
-							ProcessProfile: &share.CLUSCrdProcessProfile{Baseline: grpCfgRet.ProcessProfileCfg.Baseline},
-							ProcessRules:   crdHandler.crdGetProcessRules(grpCfgRet.ProcessProfileCfg),
-							FileRules:      crdHandler.crdGetFileRules(grpCfgRet.FileProfileCfg),
-							CfgType:        grpCfgRet.CfgType,
+							ProfileName: grpCfgRet.TargetName,
+							ProfileMode: profileMode,
+							ProcessProfile: &share.CLUSCrdProcessProfile{
+								Baseline:       grpCfgRet.ProcessProfileCfg.Baseline,
+								LearningPeriod: grpCfgRet.ProcessProfileCfg.LearningPeriod,
+							},
+							ProcessRules: crdHandler.crdGetProcessRules(grpCfgRet.ProcessProfileCfg),
+							FileRules:    crdHandler.crdGetFileRules(grpCfgRet.FileProfileCfg),
+							CfgType:      grpCfgRet.CfgType,
 						}
 					}
 

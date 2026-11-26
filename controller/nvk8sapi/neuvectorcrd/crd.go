@@ -555,6 +555,9 @@ func (b *nvCrdSchmaBuilder) buildNvSeurityCrdNwPolicyV1Schema() *apiextv1.JSONSc
 									"name": {
 										Type: b.schemaTypeString,
 									},
+									"role": {
+										Type: b.schemaTypeString,
+									},
 									"allow_update": {
 										Type: b.schemaTypeBoolean,
 									},
@@ -581,6 +584,9 @@ func (b *nvCrdSchmaBuilder) buildNvSeurityCrdNwPolicyV1Schema() *apiextv1.JSONSc
 									{Raw: b.enumMap[share.PolicyModeEvaluate]},
 									{Raw: b.enumMap[share.PolicyModeEnforce]},
 								},
+							},
+							"learning_period": {
+								Type: b.schemaTypeInteger,
 							},
 						},
 					},
@@ -683,6 +689,9 @@ func (b *nvCrdSchmaBuilder) buildNvSeurityCrdNwPolicyV1B1Schema() *apiextv1b1.JS
 									"name": {
 										Type: b.schemaTypeString,
 									},
+									"role": {
+										Type: b.schemaTypeString,
+									},
 									"allow_update": {
 										Type: b.schemaTypeBoolean,
 									},
@@ -709,6 +718,9 @@ func (b *nvCrdSchmaBuilder) buildNvSeurityCrdNwPolicyV1B1Schema() *apiextv1b1.JS
 									{Raw: b.enumMap[share.PolicyModeEvaluate]},
 									{Raw: b.enumMap[share.PolicyModeEnforce]},
 								},
+							},
+							"learning_period": {
+								Type: b.schemaTypeInteger,
 							},
 						},
 					},

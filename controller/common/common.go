@@ -563,6 +563,9 @@ func compareProcField(s1, s2 string) int {
 func compareProc(p1, p2 *share.CLUSProcessProfileEntry) int {
 	ret := compareProcField(p1.Name, p2.Name)
 	if ret == 0 {
+		ret = compareProcField(p1.Role, p2.Role)
+	}
+	if ret == 0 {
 		ret = compareProcField(p1.Path, p2.Path)
 		dir1, base1 := filepath.Split(p1.Path)
 		dir2, base2 := filepath.Split(p2.Path)

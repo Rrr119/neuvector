@@ -68,13 +68,15 @@ type NvSecurityRuleDetail struct {
 }
 
 type NvSecurityProcessProfile struct {
-	Baseline *string `json:"baseline"`
-	Mode     *string `json:"mode"` // added in 5.4.1 for process/file profiles
+	Baseline       *string `json:"baseline"`
+	Mode           *string `json:"mode"` // added in 5.4.1 for process/file profiles
+	LearningPeriod *int32  `json:"learning_period,omitempty"`
 }
 
 type NvSecurityProcessRule struct {
 	Name            string `json:"name"`
 	Path            string `json:"path"`
+	Role            string `json:"role,omitempty"`
 	Action          string `json:"action"`
 	AllowFileUpdate bool   `json:"allow_update"`
 }

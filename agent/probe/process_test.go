@@ -155,6 +155,18 @@ func TestIsShellSCript(t *testing.T) {
 	}
 }
 
+func TestReverseShellStdioSocket(t *testing.T) {
+	if !isReverseShellStdio(42, 42) {
+		t.Fatal("redirected stdin/stdout socket should be treated as a reverse shell")
+	}
+	if isReverseShellStdio(42, 43) {
+		t.Fatal("different stdio sockets must not be treated as a reverse shell")
+	}
+	if isReverseShellStdio(0, 0) {
+		t.Fatal("missing stdio socket must not be treated as a reverse shell")
+	}
+}
+
 /*
 "ip":
 

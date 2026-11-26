@@ -889,9 +889,11 @@ func (as *ControllerAgentService) ReportProcProfile(ctx context.Context, profs *
 		var ok bool
 		gproc := make(map[string][]*share.CLUSProcessProfileEntry)
 		for _, prof := range profs.Processes {
+			group, role := share.CLUSProcessRoleGroupSplit(prof.GroupName)
 			proc := &share.CLUSProcessProfileEntry{
 				Name:      prof.Name,
 				Path:      prof.Path,
+				Role:      role,
 				User:      prof.User,
 				Uid:       prof.Uid,
 				Hash:      prof.Hash,
@@ -902,12 +904,12 @@ func (as *ControllerAgentService) ReportProcProfile(ctx context.Context, profs *
 			}
 
 			var procs []*share.CLUSProcessProfileEntry
-			if procs, ok = gproc[prof.GroupName]; ok {
+			if procs, ok = gproc[group]; ok {
 				procs = append(procs, proc)
 			} else {
 				procs = []*share.CLUSProcessProfileEntry{proc}
 			}
-			gproc[prof.GroupName] = procs
+			gproc[group] = procs
 		}
 
 		if ok := cache.AddProcessReport(gproc); !ok {

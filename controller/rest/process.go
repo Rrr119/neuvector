@@ -191,6 +191,7 @@ func validateProcessProfileConfig(list []api.RESTProcessProfileEntryConfig) erro
 		}
 
 		// check valid name and path fields
+		proc.Role = strings.TrimSpace(proc.Role)
 		proc.Name = strings.TrimSpace(proc.Name)
 		if proc.Name == "" {
 			log.WithFields(log.Fields{"Path": proc.Path, "Name": proc.Name}).Error("PROC: illegal format")
@@ -221,6 +222,7 @@ func validateProcessProfileConfig(list []api.RESTProcessProfileEntryConfig) erro
 		// update
 		list[i].Name = proc.Name
 		list[i].Path = proc.Path
+		list[i].Role = proc.Role
 	}
 	return nil
 }
@@ -257,6 +259,20 @@ func handlerProcessProfileConfig(w http.ResponseWriter, r *http.Request, ps http
 			restRespErrorMessage(w, http.StatusBadRequest, api.RESTErrInvalidRequest, err.Error())
 			return
 		}
+	}
+	if conf.Whitelist != nil {
+		whitelist := make([]api.RESTProcessProfileEntryConfig, len(*conf.Whitelist))
+		copy(whitelist, *conf.Whitelist)
+		for i := range whitelist {
+			if whitelist[i].Action == "" {
+				whitelist[i].Action = share.PolicyActionAllow
+			}
+		}
+		if err := validateProcessProfileConfig(whitelist); err != nil {
+			restRespErrorMessage(w, http.StatusBadRequest, api.RESTErrInvalidRequest, err.Error())
+			return
+		}
+		conf.Whitelist = &whitelist
 	}
 
 	lock, err := clusHelper.AcquireLock(share.CLUSLockPolicyKey, clusterLockWait)
@@ -326,10 +342,43 @@ func handlerProcessProfileConfig(w http.ResponseWriter, r *http.Request, ps http
 		}
 	}
 
+	if conf.LearningPeriod != nil {
+		if *conf.LearningPeriod < share.ProcessLearningPeriodDisable {
+			log.WithFields(log.Fields{"group": group, "learning_period": *conf.LearningPeriod}).Error("Invalid learning period")
+			restRespError(w, http.StatusBadRequest, api.RESTErrInvalidRequest)
+			return
+		}
+		profile.LearningPeriod = *conf.LearningPeriod
+	}
+
 	// new/modified entry as UserCreated type
 	var rule_cfg share.TCfgType = share.UserCreated
 	if strings.HasPrefix(group, api.FederalGroupPrefix) {
 		rule_cfg = share.FederalCfg
+	}
+
+	if conf.Whitelist != nil {
+		now := time.Now().UTC()
+		profile.Whitelist = make([]*share.CLUSProcessProfileEntry, 0, len(*conf.Whitelist))
+		seen := make(map[string]struct{})
+		for _, proc := range *conf.Whitelist {
+			key := proc.Role + "\x00" + proc.Name + "\x00" + proc.Path
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			profile.Whitelist = append(profile.Whitelist, &share.CLUSProcessProfileEntry{
+				Name:            proc.Name,
+				Path:            proc.Path,
+				Role:            proc.Role,
+				Action:          share.PolicyActionAllow,
+				CfgType:         rule_cfg,
+				Uuid:            ruleid.NewUuid(),
+				CreatedAt:       now,
+				UpdatedAt:       now,
+				AllowFileUpdate: proc.AllowFileUpdate,
+			})
+		}
 	}
 
 	// commom path from UI
@@ -341,13 +390,14 @@ func handlerProcessProfileConfig(w http.ResponseWriter, r *http.Request, ps http
 			p := &share.CLUSProcessProfileEntry{
 				Name:    proc.Name,
 				Path:    proc.Path,
+				Role:    proc.Role,
 				Action:  proc.Action,
 				CfgType: rule_cfg,
 			}
 
 			idx, found := common.FindProcessInProfile(profile.Process, p)
 			if found {
-				key := proc.Name + ":" + proc.Path
+				key := proc.Role + "\x00" + proc.Name + "\x00" + proc.Path
 				deleted[key] = profile.Process[idx]
 			} else {
 				log.WithFields(log.Fields{"group": group, "rule": p}).Error("Cannot find rule")
@@ -358,7 +408,7 @@ func handlerProcessProfileConfig(w http.ResponseWriter, r *http.Request, ps http
 
 		list := make([]*share.CLUSProcessProfileEntry, 0)
 		for _, p := range profile.Process {
-			key := p.Name + ":" + p.Path
+			key := p.Role + "\x00" + p.Name + "\x00" + p.Path
 			if d, ok := deleted[key]; ok && (d.CfgType == p.CfgType) {
 				// meet all comparing criteria
 				continue
@@ -372,7 +422,7 @@ func handlerProcessProfileConfig(w http.ResponseWriter, r *http.Request, ps http
 	if conf.ProcessChgList != nil {
 		for _, proc := range *conf.ProcessChgList {
 			var created time.Time
-			key := proc.Name + ":" + proc.Path
+			key := proc.Role + "\x00" + proc.Name + "\x00" + proc.Path
 			if d, ok := deleted[key]; ok {
 				log.WithFields(log.Fields{"rule": d}).Debug("precedent")
 				created = d.CreatedAt
@@ -380,6 +430,7 @@ func handlerProcessProfileConfig(w http.ResponseWriter, r *http.Request, ps http
 			p := share.CLUSProcessProfileEntry{
 				Name:            proc.Name,
 				Path:            proc.Path,
+				Role:            proc.Role,
 				CfgType:         rule_cfg,
 				Action:          proc.Action,
 				Uuid:            ruleid.NewUuid(),

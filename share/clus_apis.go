@@ -1817,9 +1817,30 @@ func CLUSProfileConfigKey(group string) string {
 	return fmt.Sprintf("%s%s", CLUSConfigProcessProfileStore, group)
 }
 
+const processRoleGroupSeparator = "\x1f"
+
+// CLUSProcessRoleGroupName carries a role through the legacy process-report
+// gRPC message, whose generated descriptor predates the role field. The
+// separator cannot occur in a group name or a normalized role.
+func CLUSProcessRoleGroupName(group, role string) string {
+	role = strings.TrimSpace(strings.ReplaceAll(role, processRoleGroupSeparator, "_"))
+	if role == "" {
+		return group
+	}
+	return group + processRoleGroupSeparator + role
+}
+
+func CLUSProcessRoleGroupSplit(name string) (string, string) {
+	if index := strings.Index(name, processRoleGroupSeparator); index >= 0 {
+		return name[:index], name[index+len(processRoleGroupSeparator):]
+	}
+	return name, ""
+}
+
 type CLUSProcessProfileEntry struct {
 	Name            string    `json:"name"`
 	Path            string    `json:"path"`
+	Role            string    `json:"role,omitempty"`
 	User            string    `json:"user"`
 	Uid             int32     `json:"uid"`
 	Hash            []byte    `json:"hash"`
@@ -1831,16 +1852,20 @@ type CLUSProcessProfileEntry struct {
 	DerivedGroup    string    `json:"dgroup"`
 	AllowFileUpdate bool      `json:"allow_update"`
 	ProbeCmds       []string  `json:"probe_cmds"`
+	StartupLearning bool      `json:"-"`
+	BaselineAllowed bool      `json:"-"`
 }
 
 type CLUSProcessProfile struct {
-	Group        string                     `json:"group"`
-	AlertDisable bool                       `json:"alert_disabled"`
-	HashEnable   bool                       `json:"hash_enabled"`
-	Mode         string                     `json:"mode"`
-	Baseline     string                     `json:"baseline"`
-	Process      []*CLUSProcessProfileEntry `json:"process"`
-	CfgType      TCfgType                   `json:"cfg_type"`
+	Group          string                     `json:"group"`
+	AlertDisable   bool                       `json:"alert_disabled"`
+	HashEnable     bool                       `json:"hash_enabled"`
+	Mode           string                     `json:"mode"`
+	Baseline       string                     `json:"baseline"`
+	LearningPeriod int                        `json:"learning_period,omitempty"`
+	Whitelist      []*CLUSProcessProfileEntry `json:"whitelist,omitempty"`
+	Process        []*CLUSProcessProfileEntry `json:"process"`
+	CfgType        TCfgType                   `json:"cfg_type"`
 }
 
 type CLUSRegistryFilter struct {
@@ -2221,6 +2246,7 @@ type CLUSFileMonitorProfile struct {
 type CLUSCrdProcessRule struct {
 	Name            string `json:"name"`
 	Path            string `json:"path"`
+	Role            string `json:"role,omitempty"`
 	Action          string `json:"action"`
 	AllowFileUpdate bool   `json:"allow_update"`
 }
@@ -2233,7 +2259,8 @@ type CLUSCrdFileRule struct {
 }
 
 type CLUSCrdProcessProfile struct {
-	Baseline string `json:"baseline"` // "basic" & "zero-drift" for process profile. "default"/"shield" are obsolete and both mean "zero-drift"
+	Baseline       string `json:"baseline"` // "basic" & "zero-drift" for process profile. "default"/"shield" are obsolete and both mean "zero-drift"
+	LearningPeriod int    `json:"learning_period,omitempty"`
 }
 
 type CLUSCrdVulnProfile struct {

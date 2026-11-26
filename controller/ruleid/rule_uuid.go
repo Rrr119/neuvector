@@ -138,6 +138,7 @@ func pRule2ApiEntry(pRule *share.ProcRule) *api.RESTProcessUuidEntry {
 		Rule: api.RESTProcessProfileEntry{
 			Name:             pRule.Rule.Name,
 			Path:             pRule.Rule.Path,
+			Role:             pRule.Rule.Role,
 			CfgType:          common.TCfgTypeToApi(pRule.Rule.CfgType),
 			User:             pRule.Rule.User,
 			Uuid:             pRule.Rule.Uuid,

@@ -8174,6 +8174,9 @@ definitions:
       path:
         type: string
         example: path
+      role:
+        type: string
+        example: api
       user:
         type: string
         example: user
@@ -8221,6 +8224,14 @@ definitions:
       mode:
         type: string
         example: ""
+      learning_period:
+        type: integer
+        example: 30
+        description: Startup process learning window in seconds. Zero uses the system default; -1 disables it.
+      whitelist:
+        type: array
+        items:
+          $ref: "#/definitions/RESTProcessProfileEntry"
       process_list:
         type: array
         items:
@@ -8255,6 +8266,13 @@ definitions:
       hash_enabled:
         type: boolean
         example: true
+      learning_period:
+        type: integer
+        example: 30
+      whitelist:
+        type: array
+        items:
+          $ref: "#/definitions/RESTProcessProfileEntryConfig"
       process_change_list:
         type: array
         items:
@@ -8320,6 +8338,9 @@ definitions:
       path:
         type: string
         example: ""
+      role:
+        type: string
+        example: api
       action:
         type: string
         example: monitor

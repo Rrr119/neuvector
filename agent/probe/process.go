@@ -1764,6 +1764,10 @@ func (p *Probe) scanNewProcess(pids utils.Set) {
 }
 
 // Trigger when stdin and stdout are redirected to socket and have the same inode
+func isReverseShellStdio(inodeStdin, inodeStdout uint32) bool {
+	return inodeStdin != 0 && inodeStdin == inodeStdout
+}
+
 func (p *Probe) checkReverseShell(pid int) *osutil.Connection {
 	inodeStdin, err := osutil.GetFDSocketInode(pid, 0)
 	if err != nil {
@@ -1773,7 +1777,7 @@ func (p *Probe) checkReverseShell(pid int) *osutil.Connection {
 	if err != nil {
 		return nil
 	}
-	if inodeStdin != inodeStdout || inodeStdin == 0 {
+	if !isReverseShellStdio(inodeStdin, inodeStdout) {
 		return nil
 	}
 	return osutil.GetProcessConnection(pid, nil, utils.NewSet(inodeStdin))
@@ -2629,7 +2633,11 @@ func (p *Probe) procProfileEval(id string, proc *procInternal, bKeepAlive bool) 
 	// transition from monitor -> protect, we ignore the reported flag to control determine actions.
 	if (proc.reported&profileReported) == 0 || mode == share.PolicyModeEnforce {
 		bZeroDrift := baseline == share.ProfileZeroDrift
-		if bZeroDrift {
+		if pp.StartupLearning || pp.BaselineAllowed {
+			// The agent already admitted this process from the startup
+			// whitelist baseline. Do not re-evaluate it as zero-drift.
+			bKeepAlive = true
+		} else if bZeroDrift {
 			if pass := p.IsAllowedShieldProcess(id, mode, svcGroup, proc, pp, true); pass {
 				switch pp.Action {
 				case share.PolicyActionLearn, share.PolicyActionCheckApp: // exclude these two actions

@@ -1,0 +1,17 @@
+{
+  "root": "/home/dev/feedback/uid38822",
+  "B": "/home/dev/feedback/uid38822",
+  "sha": "1ab7e3d20f0b2a75008eee4c4bbd65c130d0a15b",
+  "wslDistro": "Ubuntu-26.04",
+  "source": {
+    "owner": "neuvector",
+    "repo": "neuvector",
+    "sha": "1ab7e3d20f0b2a75008eee4c4bbd65c130d0a15b"
+  },
+  "fork": {
+    "owner": "Rrr119",
+    "repo": "neuvector",
+    "cloneUrl": "https://github.com/Rrr119/neuvector.git"
+  },
+  "at": "2026-11-26T03:36:33.864Z"
+}
